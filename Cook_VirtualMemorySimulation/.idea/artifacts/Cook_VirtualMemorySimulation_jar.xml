@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Cook_VirtualMemorySimulation:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Cook_VirtualMemorySimulation_jar</output-path>
+    <root id="archive" name="Cook_VirtualMemorySimulation.jar">
+      <element id="module-output" name="Cook_VirtualMemorySimulation" />
+    </root>
+  </artifact>
+</component>
