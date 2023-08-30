@@ -47,120 +47,150 @@ public class Main {
         }
 
         Integer[][] fifo_vram = new Integer[100][frames];
-        int fifo_faults = 0;
-        ArrayList<Integer> timeSinceInserted = new ArrayList<>(frames);
+        fifo_vram = PerformFIFOMemoryPolicy(fifo_vram, pages, frames);
 
         Integer[][] lfu_vram = new Integer[100][frames];
-        int lfu_faults = 0;
-        Integer[][] opra_vram = new Integer[100][frames];
-        int opra_faults = 0;
+        //lfu_vram = PerformLFUMemoryPolicy(lfu_vram, pages, frames);
 
-        Map<Integer, Integer> pageFrequencies = new HashMap<Integer, Integer>();
+        Integer[][] opra_vram = new Integer[100][frames];
+        //opra_vram = PerformOPRAMemoryPolicy(opra_vram, pages, frames);
+
+
+    }
+
+    public static Integer[][] PerformFIFOMemoryPolicy(Integer[][] memory, int[] pages, int frames){
+        int[] timeSinceInserted = new int[frames];
+        int faults = 0;
+
         for(int time = 0; time < 100; time++) {
 
             // Track page frequency for LFU using a hashmap
             int pageToWrite = pages[time];
 
             // Populate with -1 to know where empty values are w/o using null. Zero is default, but cannot be used as it is a possible page
-            Arrays.fill(fifo_vram[time], -1);
-            Arrays.fill(lfu_vram[time], -1);
-            Arrays.fill(opra_vram[time], -1);
-
-            if(pageFrequencies.containsKey(pageToWrite))
-                pageFrequencies.put(pageToWrite, (pageFrequencies.get(pageToWrite) + 1));
-            else
-                pageFrequencies.put(pageToWrite, 0);
+            Arrays.fill(memory[time], -1);
 
             boolean generatesFault = true;
 
             if(time > frames) {
-                for (int i = 0; i < fifo_vram[time - 1].length; i++) {
-                    if (fifo_vram[time - 1][i] == pageToWrite) {
+                for (int i = 0; i < memory[time - 1].length; i++) {
+                    if (memory[time - 1][i] == pageToWrite) {
                         generatesFault = false;
-                        fifo_vram[time] = Arrays.copyOf(fifo_vram[time - 1], fifo_vram[time - 1].length);
-                        timeSinceInserted.set(i, 0);
+                        memory[time] = Arrays.copyOf(memory[time - 1], memory[time - 1].length);
+                        timeSinceInserted[i] = 0;
                         break;
                     }
                     else {
-                        timeSinceInserted.set(i, (timeSinceInserted.get(i) + 1));
+                        timeSinceInserted[i]++;
                     }
                 }
             }
 
             if(generatesFault) {
+                faults++;
+                System.out.println("FIFO Algorithm produced a fault at time " + time + ".");
                 if(time == 0) {
-                    fifo_vram[time][0] = pageToWrite;
+                    memory[time][0] = pageToWrite;
                 }
                 else if(time < frames) {
-                    fifo_vram[time] = Arrays.copyOf(fifo_vram[time - 1], fifo_vram[time - 1].length);
+                    memory[time] = Arrays.copyOf(memory[time - 1], memory[time - 1].length);
                     for(int i = 0; i < frames; i++){
-                        if(fifo_vram[time][i] == -1){
-                            fifo_vram[time][i] = pageToWrite;
-                            timeSinceInserted.set(i, 0);
+                        if(memory[time][i] == -1){
+                            memory[time][i] = pageToWrite;
+                            timeSinceInserted[i] = 0;
                             break;
                         }
                         else{
-                            timeSinceInserted.set(i, (timeSinceInserted.get(i) + 1));
+                            timeSinceInserted[i]++;
                         }
                     }
                 }
                 else {
                     for (int framesIndex = 0; framesIndex < frames; framesIndex++) {
                         // FIFO Paging -------------------------------------------------------------------------------------------------------------
-                        fifo_faults++;
-                        //Determine oldest page
-                        int highestElement = Stream.of(timeSinceInserted.toArray()).max(Comparator.comparing(Integer::valueOf)).get();
-                        int oldestPageIndex =timeSinceInserted.indexOf(highestElement);
 
-                        for (int i = 0; i < fifo_vram[time].length; i++) {
+                        //Determine the oldest page
+                        int oldestPageIndex = 0;
+
+                        for (int i = 0; i < timeSinceInserted.length; i++) {
+                            if (timeSinceInserted[i] > timeSinceInserted[oldestPageIndex]) {
+                                oldestPageIndex = i;
+                            }
+                        }
+
+                        for (int i = 0; i < memory[time].length; i++) {
                             if (i == oldestPageIndex)
-                                fifo_vram[time][oldestPageIndex] = pageToWrite;
+                                memory[time][oldestPageIndex] = pageToWrite;
                             else
-                                fifo_vram[time][i] = fifo_vram[time - 1][i];
+                                memory[time][i] = memory[time - 1][i];
                         }
 
                         //--------------------------------------------------------------------------------------------------------------------------
                     }
                 }
+            }
+        }
+        System.out.println("FIFO Algorithm has completed and produced a total of " + faults + " page faults./n/n/n");
+        return memory;
+    }
 
+    public static Integer[][] PerformLFUMemoryPolicy(Integer[][] memory, int[] pages, int frames) {
+        int faults = 0;
+        HashMap<Integer, Integer> pageFrequencies = new HashMap<Integer, Integer>();
 
+        for(int time = 0; time < 100; time++) {
+            // Track page frequency for LFU using a hashmap
+            int pageToWrite = pages[time];
+            if(pageFrequencies.containsKey(pageToWrite))
+                pageFrequencies.put(pageToWrite, (pageFrequencies.get(pageToWrite) + 1));
+            else
+                pageFrequencies.put(pageToWrite, 0);
 
+            // Populate with -1 to know where empty values are w/o using null. Zero is default, but cannot be used as it is a possible page
+            Arrays.fill(memory[time], -1);
 
+            boolean generatesFault = true;
 
-                // LFU Paging --------------------------------------------------------------------------------------------------------------
-
-                //--------------------------------------------------------------------------------------------------------------------------
-
-
-
-                // Optimal Page Replacement Paging -----------------------------------------------------------------------------------------
-
-                //--------------------------------------------------------------------------------------------------------------------------
+            if (time > frames) {
+                for (int i = 0; i < memory[time - 1].length; i++) {
+                    if (memory[time - 1][i] == pageToWrite) {
+                        generatesFault = false;
+                        memory[time] = Arrays.copyOf(memory[time - 1], memory[time - 1].length);
+                        break;
+                    }
                 }
             }
 
-        PrintMemory(fifo_vram);
-        //PrintMemory(lfu_vram);
-        //PrintMemory(opra_vram);
-    }
+            if (generatesFault) {
+                faults++;
+                System.out.println("FIFO Algorithm produced a fault at time " + time + ".");
+                if (time == 0) {
+                    memory[time][0] = pageToWrite;
+                } else if (time < frames) {
+                    memory[time] = Arrays.copyOf(memory[time - 1], memory[time - 1].length);
+                    for (int i = 0; i < frames; i++) {
+                        if (memory[time][i] == -1) {
+                            memory[time][i] = pageToWrite;
+                            break;
+                        }
+                    }
+                }
+                else {
+                    int mostFrequentPage = pages[0];
+                    int mostFrequent = pageFrequencies.get(pages[0]);
+                    for(Integer freq : pageFrequencies.values()){
+                        if(freq > mostFrequent){
+                            mostFrequent = freq;
+                        }
+                    }
 
-    public static void PrintMemory(Integer[][] memory) {
-        String leftAlignFormat = "| %-15s | %-4d | %-4d | %-4d | %-4d | %-4d | %-4d | %-4d | %-4d | %-4d | %-4d |%n";
 
-        System.out.format("+-----------------+------+------+------+------+------+------+------+------+------+------+%n");
-        System.out.format("| Frame           | T1   | T2   | T3   | T4   | T5   | T6   | T7   | T8   | T9   | T10  |%n");
-        System.out.format("+-----------------+------+------+------+------+------+------+------+------+------+------+%n");
-        for (int i = 0; i < memory.length; i++) {
-            if(memory[i].length > 10) {
-                System.out.format(leftAlignFormat, "Frame " + i, memory[i][0], memory[i][1], memory[i][2], memory[i][3], memory[i][4], memory[i][5], memory[i][6], memory[i][7], memory[i][8], memory[i][9]);
-                System.out.format("+-----------------+------+%n");
-            }
-            else {
-                System.out.println("Something went wrong during memory writing. Debug Info below:");
-                System.out.println("Memory length: " + memory.length);
-                System.out.println("Frame length: " + memory[0].length);
-                break;
+                }
             }
         }
+        return memory;
+    }
+    public static Integer[][] PerformOPRAMemoryPolicy(Integer[][] memory, int[] pages, int frames) {
+        return memory;
     }
 }
